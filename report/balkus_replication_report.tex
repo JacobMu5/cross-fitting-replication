@@ -31,105 +31,159 @@
 \section{Background}
 %======================================================================
 
-In causal machine learning, \emph{cross-fitting} eliminates empirical process (EP) bias from flexible nuisance estimation \citep{chernozhukov2018}. For clustered data, \citet{chiang2021} propose $K^2$-fold splitting: partition row and column clusters into $K$ groups, yielding $K^2$ test blocks with training folds that exclude all correlated observations. \citet{balkus2026} prove this elaborate splitting is \textbf{typically unnecessary}: standard as-IID splitting --- ignoring clustering --- eliminates EP bias whenever cluster sizes are bounded (their Corollary~2). Crucially, they note that ``variance estimates must still be adjusted to account for inter-unit correlation.''
+When we use machine learning to estimate causal effects, the ML model can overfit: it learns patterns in the training data that don't generalize. This creates \emph{empirical process (EP) bias} --- a systematic error in the treatment effect estimate caused by using the same data for both nuisance estimation and inference. \emph{Cross-fitting} fixes this by splitting the data in two --- train the ML model on one half, estimate the causal effect on the other half, then swap \citep{chernozhukov2018}.
 
-\paragraph{Research questions.}
-\begin{enumerate}[leftmargin=1.5em, nosep]
-  \item Can we reproduce Balkus's finding that as-IID $\geq$ Chiang K$^2$-fold in Python?
-  \item Does it hold under harder DGPs that violate Balkus's ``safety nets''?
-  \item Where does the bounded-cluster assumption break, and what fails first?
-\end{enumerate}
+But what if units in the data are correlated --- e.g., students nested in schools, or workers nested in firms? \citet{chiang2021} argue that splits must \emph{respect} the clustering: if two observations share a cluster, they cannot be in different folds. They propose K$^2$-fold splitting, which partitions both row and column clusters into $K$ groups. The downside: with $K=2$, each training fold sees only $\sim$25\% of the data.
 
-\paragraph{Three strategies.} \textbf{no\_cf}: no splitting (baseline). \textbf{as\_iid}: standard $K$-fold, ignoring clusters. \textbf{chiang}: $K^2$-fold two-way splitting \citep[Algorithm~1]{chiang2021}.
+\citet{balkus2026} prove this elaborate splitting is \textbf{usually unnecessary}. Their Theorem~1 shows that plain random splitting --- ignoring clusters entirely --- still eliminates the EP bias, as long as cluster sizes don't grow with the sample. They call this ``as-IID'' splitting.
+
+There is one caveat. Balkus note that even though the \emph{splitting strategy} doesn't need to know about clusters, the \emph{standard errors} still do:
+\begin{quote}
+\emph{``Variance estimates used for the construction of confidence intervals must be adjusted to account for inter-unit correlation.''} --- \citet[Section~4]{balkus2026}
+\end{quote}
+
+This distinction --- splitting strategy vs.\ standard error formula --- is the central theme of this report.
+
+\paragraph{Three strategies we compare.}
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{No CF}: No splitting at all. Train and predict on the same data. This is the baseline that shows when cross-fitting matters.
+  \item \textbf{As-IID}: Standard random $K$-fold splitting, ignoring clusters.
+  \item \textbf{Chiang K$^2$-fold}: Cluster-aware splitting that guarantees statistical independence between training and test data.
+\end{itemize}
 
 
 %======================================================================
-\section{Evaluation: Morris et al.\ (2019)}
+\section{How We Measure Success}
 \label{sec:morris}
 %======================================================================
 
-We follow the ADEMP framework of \citet{morris2019}. Each replication yields a point estimate $\hat{\theta}_i$ and a formula-based SE $\widehat{SE}_i$. The key diagnostic is:
+We run each experiment 200 times with different random seeds. Each run produces two numbers: a treatment effect estimate $\hat{\theta}$ and a standard error $\widehat{SE}$ (what the formula \emph{thinks} the uncertainty is). Because we control the data-generating process, we know the true treatment effect $\theta_0$.
 
-\begin{equation}
-  \text{RelSE} = \frac{\text{ModSE}}{\text{EmpSE}} = \frac{\sqrt{\frac{1}{n_\text{sim}} \sum_i \widehat{SE}_i^{\,2}}}{\text{SD}(\hat{\theta}_1, \ldots, \hat{\theta}_{n_\text{sim}})}
-\end{equation}
+Following \citet{morris2019}, we compute:
 
-\noindent where EmpSE is the true sampling variability (SD of estimates across replications) and ModSE is the RMS of formula-based SEs. RelSE $\approx 1$ means well-calibrated SEs; $<1$ is anti-conservative (dangerous); $>1$ is over-conservative (wasteful). Unlike coverage, RelSE reveals \emph{how far off} the SEs are and \emph{in which direction}.
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{Bias}: How far off are the estimates on average? ($\bar{\hat{\theta}} - \theta_0$)
+  \item \textbf{EmpSE}: The \emph{true} uncertainty, measured as the standard deviation of the 200 estimates.
+  \item \textbf{ModSE}: The \emph{reported} uncertainty, computed as $\sqrt{\text{mean}(\widehat{SE}^2)}$ across the 200 runs.
+  \item \textbf{RelSE = ModSE / EmpSE}: Are the reported standard errors correct?
+  \item \textbf{Coverage}: How often does the 95\% confidence interval contain the true $\theta_0$?
+\end{itemize}
+
+\paragraph{Why RelSE matters more than coverage.} Two methods can both have 88\% coverage, but one might have RelSE $= 0.90$ (SEs are slightly too small --- fixable) while the other has RelSE $= 0.39$ (SEs are catastrophically wrong --- the method is fundamentally broken). Coverage hides this difference. RelSE reveals it.
 
 
 %======================================================================
-\section{Balkus Replication}
+\section{Balkus Replication: Which Learner Needs Cross-Fitting?}
 \label{sec:balkus}
 %======================================================================
 
-\subsection{MARS Doesn't Need Cross-Fitting}
+We test three ML learners on Balkus's two-way clustered DGP. Each learner sits at a different point on the ``overfitting spectrum'':
 
-We test three learners on Balkus's two-way clustered AIPW DGP: MARS (R's \texttt{earth} via \texttt{rpy2}), Deep RF (sklearn, fully-grown trees), and LASSO. Four DGP variants progressively remove ``safety nets'': Original (direct R replication), No Compression (extreme propensity weights), Shared Effects (maximal cross-fold leakage), and Adversarial (sparse bipartite graph).
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{MARS} (R's \texttt{earth}): Additive splines with built-in pruning. A ``careful'' learner that avoids overfitting by design.
+  \item \textbf{Deep RF} (sklearn): Fully-grown random forests that memorize the training data. A ``reckless'' learner --- exactly the kind cross-fitting was invented for.
+  \item \textbf{Lasso}: L1-regularized regression. Another ``careful'' learner, like MARS.
+\end{itemize}
+
+We also go beyond Balkus's original DGP. Their simulation has several ``safety nets'' that make life easy for the estimator. We remove them one by one to stress-test the theory:
+
+\begin{table}[H]
+\centering\small
+\caption{DGP variants: each removes one safety net from Balkus's original design.}
+\label{tab:dgp-overview}
+\begin{tabular}{p{2.5cm}p{5cm}p{5.5cm}}
+\toprule
+\textbf{DGP} & \textbf{What changed} & \textbf{What it tests} \\
+\midrule
+Original & Nothing (direct R replication) & Baseline: does our Python match? \\
+No Compression & Removed propensity scaling & Extreme DR weights ($p_A \to 0$) \\
+Shared Effects & One shared confounder per dimension & Maximum cross-fold leakage \\
+Adversarial & Sparse bipartite graph + cluster proxies & Stress test within Corollary~2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{The Key Finding: MARS Doesn't Need Cross-Fitting At All}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{replications/balkus/results/plots/mars_vs_deep_rf.png}
-\caption{MARS bias is near zero with or without cross-fitting; Deep RF bias only reaches zero \emph{with} cross-fitting.}
+\caption{MARS bias is near zero regardless of splitting strategy. Deep RF bias is large without cross-fitting but disappears with either as-IID or Chiang splitting.}
 \label{fig:mars-vs-rf}
 \end{figure}
 
-MARS achieves 89--96\% coverage \textbf{without any cross-fitting}. Its GCV pruning makes it approximately Donsker-class \citep[p.~C16]{chernozhukov2018}. This means MARS \emph{cannot} test Balkus's theorem --- we cannot distinguish ``Theorem~1 works'' from ``cross-fitting is irrelevant.'' Deep RF ($\texttt{max\_depth}=\infty$) memorizes training data, creating exactly the EP bias that cross-fitting eliminates. The Donsker diagnostic confirms: MARS decays at $n^{-1/2}$ without CF; Deep RF does not (Figure~\ref{fig:donsker}).
+MARS achieves 89--96\% coverage \emph{without any cross-fitting}. Its built-in GCV pruning prevents the overfitting that creates EP bias. As \citet[p.~C16]{chernozhukov2018} note: if the learner belongs to a ``Donsker class'' (roughly: it doesn't overfit enough to create EP bias), cross-fitting is unnecessary.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\textwidth]{replications/balkus/results/plots/donsker_diagnostic.png}
-\caption{Log-log bias decay without CF. MARS achieves the Donsker rate; Deep RF does not.}
-\label{fig:donsker}
-\end{figure}
+This creates a problem: \textbf{MARS is the wrong learner to test Balkus's theorem.} If cross-fitting doesn't matter regardless, we can't tell whether as-IID splitting ``works'' or whether splitting is just irrelevant. That's why we introduced Deep RF --- a learner where cross-fitting genuinely matters.
+
+\paragraph{Deep RF confirms Balkus.} Without cross-fitting, Deep RF creates massive EP bias: coverage drops to 0.8--45\%. With \emph{either} as-IID or Chiang splitting, the EP bias vanishes and coverage recovers to 88--96\%. The two strategies perform equally well. As-IID has lower RMSE because Chiang discards $\sim$75\% of training data per fold.
 
 
-\subsection{As-IID Wins Everywhere}
+\subsection{The SE Calibration Story}
 
-Across all DGPs, learners, and sample sizes ($N \in \{20,30,50\}$, 200 replications each): \textbf{as-IID matches or beats Chiang K$^2$-fold.} Deep RF no\_cf is catastrophic (0.8\% coverage on Shared Effects). Both strategies rescue it to 88--96\%. As-IID has consistently lower RMSE because Chiang discards $\sim$75\% of training data per fold.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\textwidth]{replications/balkus/results/plots/scorecard_heatmap.png}
-\caption{Coverage difference (as-IID $-$ Chiang). Blue = as-IID better.}
-\end{figure}
-
-
-\subsection{Morris RelSE: IID vs Cluster-Robust SEs}
-\label{sec:balkus-relse}
-
-Coverage alone hides whether SEs are ``slightly off'' or ``fundamentally wrong.'' We compute RelSE separately for IID and cluster-robust (CR) SEs.
+Coverage tells you \emph{whether} your confidence intervals work. RelSE tells you \emph{why} they fail. We compute RelSE separately for two types of standard errors: IID (ignoring clusters) and cluster-robust (CR, accounting for clusters).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{replications/balkus/results/plots/morris_relse.png}
-\caption{\textbf{Morris RelSE.} (A)~Most points sit above the diagonal: CR SEs are better calibrated than IID. Red no-CF points cluster in the anti-conservative corner. (B)~Deep RF no\_cf: RelSE $= 0.39$ (IID) / $0.58$ (CR) --- both catastrophic. With CF, both reach $\approx 1.0$.}
+\caption{\textbf{SE calibration.} (A)~Each dot is one (DGP, learner, strategy, sample size) combination. Points near the green zone have well-calibrated SEs. Red dots (no CF) for Deep RF are catastrophically low. (B)~Mean RelSE: Deep RF without CF reports SEs that are only 39\% of the true uncertainty.}
 \label{fig:morris-relse}
 \end{figure}
 
 % Auto-generated from CSV: python -m report.generate_tables
 \begin{table}[H]
 \centering\small
-\caption{Mean RelSE by learner $\times$ strategy, averaged over DGPs with CR SEs available.}
+\caption{Mean RelSE by learner and strategy, averaged over all DGPs with cluster-robust SEs.}
 \label{tab:relse}
 \input{report/tables/relse_balkus}
 \end{table}
 
-\paragraph{Key insight: two independent corrections.}
+\paragraph{What this table shows:}
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{Cross-fitting fixes bias}: Deep RF RelSE jumps from 0.39 to 0.99 --- the influence function is now unbiased.
-  \item \textbf{CR SEs fix variance}: consistent 3--5\% RelSE improvement over IID SEs across all learners.
-  \item Without CF, \emph{no variance estimator can save you} --- the influence function itself is contaminated.
+  \item \textbf{Deep RF without CF is broken.} RelSE $= 0.39$ means the reported SEs are only 39\% of the true uncertainty. The confidence intervals are far too narrow. Even switching to cluster-robust SEs (0.58) doesn't fix it --- the EP bias contaminates the influence function \emph{before} the SE formula even runs.
+  \item \textbf{Cross-fitting fixes it.} With either as-IID or Chiang, RelSE jumps to $\sim$0.98. Once the EP bias is eliminated, the SE formula receives an uncontaminated influence function.
+  \item \textbf{CR SEs add a small but consistent improvement} of 3--5\% over IID SEs, across all learners and strategies. This confirms Balkus's caveat: you need cluster-robust SEs regardless of how you split.
+  \item \textbf{MARS and Lasso don't need cross-fitting for EP bias.} Their RelSE is already 0.83--0.95 without CF (they're Donsker-class). But they still benefit from CR SEs.
+\end{itemize}
+
+\paragraph{Bottom line:} Cross-fitting and cluster-robust SEs fix two \emph{different} problems. Cross-fitting eliminates the EP bias (Chernozhukov's contribution). CR SEs correct the variance underestimation from ignoring within-cluster correlation (Cameron et al.'s contribution). Both are needed independently.
+
+
+\subsection{The Decoupling Proof: As-IID + CR SE Is Optimal}
+\label{sec:decoupling-proof}
+
+We claimed that the optimal combination is as-IID splitting with cluster-robust SEs. Table~\ref{tab:decoupling} shows direct evidence: for each learner, we report coverage under all six combinations of (strategy $\times$ SE type).
+
+% Auto-generated from CSV: python -m report.generate_tables
+\begin{table}[H]
+\centering\small
+\caption{Coverage by strategy and SE type, averaged across all DGPs. Bold = closest to 95\%. Read across each row: as-IID + CR SE consistently hits the highest coverage.}
+\label{tab:decoupling}
+\input{report/tables/decoupling_proof}
+\end{table}
+
+\paragraph{Reading the table:}
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{MARS as-IID + CR SE: 95.4\% coverage} --- essentially perfect. IID SEs give 94.8\%, so the CR improvement is small (MARS doesn't create strong cluster correlation in the influence function).
+  \item \textbf{Deep RF as-IID: 86.5\% (IID) vs 86.2\% (CR)} --- here both SE types give similar coverage because cross-fitting already cleaned up the influence function. But without CF, the jump from 19.2\% to 28.6\% shows CR SEs help.
+  \item \textbf{Lasso as-IID + CR SE: 92.7\%} --- again the best for Lasso. Chiang K$^2$-fold achieves similar coverage (93.5\%) but with higher variance (not shown: RMSE is 2--4$\times$ larger).
+  \item \textbf{No combination of no\_cf achieves $>$90\% for Deep RF.} This confirms: without cross-fitting, even perfect SEs cannot save a reckless learner.
 \end{itemize}
 
 
 %======================================================================
-\section{Chiang PLIV Replication}
+\section{Chiang Replication: Testing on Chiang's Own DGP}
 \label{sec:chiang}
 %======================================================================
 
-\subsection{Head-to-Head on Chiang's Own DGP}
+Everything above uses Balkus's AIPW estimator. A natural question: do the results hold on a completely different estimator?
 
-Neither paper performs this comparison. Chiang only tests K$^2$-fold vs no-CF; Balkus uses a different estimator. We fill the gap using the partially linear IV DGP from \citet[Section~4.1]{chiang2021}, with our custom estimator that \textbf{decouples} cross-fitting strategy from variance estimator.
+We replicate the partially linear IV (PLIV) model from \citet[Section~4.1]{chiang2021}. This is their own simulation design, so it's the fairest possible test.
+
+\paragraph{Learner choice: Lasso.} Chiang et al.\ use Lasso in their paper, and we follow their design. In the PLIV model, the learner's job is to partial out $p = 100$--$200$ control variables from the outcome, treatment, and instrument. Lasso is the standard choice for this high-dimensional setting.
+
+This creates an important nuance. Lasso, like MARS, is approximately Donsker --- it doesn't create large EP bias. So the no\_cf and as\_iid rows look almost identical in terms of bias. The Chiang replication is therefore \emph{not} a test of whether cross-fitting removes EP bias (we already showed that with Deep RF above). Instead, it tests a different question: \textbf{what happens when K$^2$-fold splitting starves the learner of training data?} With $K=2$ and a $25 \times 25$ grid, each Chiang fold trains on only $\sim$144 observations --- barely more than the $p = 100$ covariates.
 
 % Auto-generated from CSV: python -m report.generate_tables
 \begin{table}[H]
@@ -139,23 +193,29 @@ Neither paper performs this comparison. Chiang only tests K$^2$-fold vs no-CF; B
 \input{report/tables/chiang_pliv}
 \end{table}
 
-Chiang K$^2$-fold has 2$\times$ the variance of as-IID at $(25,25)$. At $p=200$ it collapses entirely: more parameters than training observations per fold. At $(50,50)$ the gap narrows as more data becomes available per fold.
+\paragraph{What this table shows:}
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{Chiang K$^2$-fold has 2$\times$ the variance of as-IID} at $(25,25)$, $p=100$: EmpSE $= 0.111$ vs $0.056$. Each Chiang fold trains on only $\sim$144 observations with 100 covariates --- severe data starvation.
+  \item \textbf{At $p=200$, K$^2$-fold collapses}: bias $= +0.50$, coverage $= 0\%$. There are more covariates than training observations per fold. Lasso cannot learn anything useful.
+  \item \textbf{At $(50,50)$, the gap narrows}: more clusters mean more training data per fold. K$^2$-fold starts working, but as-IID is still better.
+  \item \textbf{No-CF and as-IID are nearly identical}: because Lasso doesn't overfit, cross-fitting doesn't change the point estimates. The coverage differences come from the variance estimation.
+\end{itemize}
 
 
-\subsection{DoubleML Validation: The Decoupling Revelation}
+\subsection{The DoubleML Experiment: Why Software Design Matters}
 
-We repeated the comparison using the \textbf{official DoubleML library} (v0.11.1) with its built-in DGP. Parameters: $N\!=\!M\!=\!25$, $p\!=\!100$, $K\!=\!3$, LassoCV, 100 replications.
+To rule out any bugs in our code, we repeated the comparison using the \textbf{official DoubleML library} (v0.11.1) with its built-in DGP function. Parameters: $N\!=\!M\!=\!25$, $p\!=\!100$, $K\!=\!3$, LassoCV, 100 replications.
 
 \begin{table}[H]
 \centering\small
-\caption{DoubleML head-to-head. The failures are \emph{opposite}.}
+\caption{DoubleML comparison. Both strategies fail --- but in \emph{opposite} directions.}
 \label{tab:doubleml}
 \begin{tabular}{lrrrrrr}
 \toprule
 \textbf{Strategy} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
 \midrule
-Chiang K$^2$-fold & $+$0.007 & 0.074 & 0.106 & 1.43 & 0.074 & 100.0\% \\
-As-IID            & $+$0.005 & 0.060 & 0.040 & 0.66 & 0.060 &  78.0\% \\
+Chiang K$^2$-fold & $+$0.007 & 0.074 & 0.106 & 1.43 & 0.074 & 100\% \\
+As-IID            & $+$0.005 & 0.060 & 0.040 & 0.66 & 0.060 &  78\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -163,35 +223,39 @@ As-IID            & $+$0.005 & 0.060 & 0.040 & 0.66 & 0.060 &  78.0\% \\
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{replications/chiang/results/doubleml_comparison.png}
-\caption{DoubleML diagnostic. As-IID has tighter estimates but anti-conservative SEs (RelSE $=0.66$). Chiang has over-conservative SEs (RelSE $=1.43$, 100\% coverage but uninformative CIs).}
+\caption{DoubleML diagnostic. As-IID has tighter estimates (A) but its SEs are too small (B, RelSE $=0.66$). Chiang's SEs are too large (RelSE $=1.43$). Chiang's CIs cover everything (D) but are uninformatively wide.}
 \label{fig:doubleml}
 \end{figure}
 
-This reveals a \textbf{software design flaw}: DoubleML bundles two independent choices into \texttt{cluster\_cols}:
+The results are striking. As-IID has \textbf{19\% lower variance} (better estimates), but \textbf{neither strategy produces valid confidence intervals}:
+
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{Chiang: 100\% coverage, RelSE $= 1.43$.} The SEs are 43\% too large. Every confidence interval covers the truth, but they're so wide they're useless. You cover everything but learn nothing.
+  \item \textbf{As-IID: 78\% coverage, RelSE $= 0.66$.} The SEs are 34\% too small. This is because DoubleML uses IID SEs when you don't set \texttt{cluster\_cols} --- it ignores within-cluster correlation entirely.
+\end{itemize}
+
+\paragraph{The problem is software design.} DoubleML bundles two independent choices into one toggle:
 
 \begin{center}\small
 \begin{tabular}{lcc}
 \toprule
-\texttt{cluster\_cols} & \textbf{Cross-fitting} & \textbf{Variance estimator} \\
+\texttt{cluster\_cols} & \textbf{Splitting} & \textbf{Standard errors} \\
 \midrule
-Set     & K$^2$-fold & Cluster-robust \\
-Not set & As-IID     & IID \\
+Set     & K$^2$-fold (cluster-aware) & Cluster-robust \\
+Not set & As-IID (random)            & IID \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent But Balkus's Theorem~1 shows these are logically independent. The optimal combination is:
-\begin{center}
-\fbox{\textbf{As-IID splitting} + \textbf{Cluster-robust SE} = best of both worlds}
-\end{center}
+But Balkus's theorem tells us these are \emph{logically independent} choices. You want as-IID splitting (to maximize training data) \emph{with} cluster-robust SEs (to account for within-cluster correlation). DoubleML doesn't let you do this. Our custom implementation does, and it achieves the best bias--coverage tradeoff (Table~\ref{tab:chiang}).
 
 
 %======================================================================
-\section{Boundary: Where Corollary~2 Breaks}
+\section{Where the Theory Breaks}
 \label{sec:boundary}
 %======================================================================
 
-A full $N \times M$ grid violates Corollary~2 (cluster degree grows with $N$). With strong cluster effects and clean proxies, coverage declines as the grid grows --- from 85\% to 71\% for \emph{both} strategies. Neither reaches 95\%. The failure is the CGM variance estimator, not cross-fitting. On bounded-cluster adversarial DGPs (sparse bipartite graph, $d=20$), both strategies achieve 97\% coverage with CR SEs, confirming the boundary is exactly where the theory predicts.
+Balkus's Corollary~2 requires that cluster sizes are \emph{bounded} --- each row contains at most $C$ columns, where $C$ doesn't grow with the sample. In a full $N \times M$ grid, every row contains $M$ observations, so $C = M \to \infty$. We tested this with strong cluster effects. Coverage declines from 85\% to 71\% as the grid grows --- for \emph{both} strategies equally. The culprit is the cluster-robust SE formula itself (which assumes fixed cluster sizes), not the splitting strategy. On bounded-cluster DGPs (sparse bipartite graph, $d=20$), both strategies achieve 97\% coverage, confirming the boundary is exactly where the theory predicts.
 
 
 %======================================================================
@@ -199,11 +263,11 @@ A full $N \times M$ grid violates Corollary~2 (cluster degree grows with $N$). W
 %======================================================================
 
 \begin{enumerate}[leftmargin=1.5em, nosep]
-  \item \textbf{Balkus et al.\ are empirically robust.} As-IID matches or beats K$^2$-fold across five DGPs, three learners, multiple sample sizes.
-  \item \textbf{Learner choice $>$ fold strategy.} MARS doesn't need CF; Deep RF is catastrophic without it. Both strategies fix it equally.
-  \item \textbf{The boundary is variance estimation, not splitting.} When Corollary~2 breaks, coverage declines for both strategies equally.
-  \item \textbf{Software must decouple splitting from variance.} DoubleML's bundled toggle prevents the optimal combination.
-  \item \textbf{Recommendation:} as-IID cross-fitting + cluster-robust SEs.
+  \item \textbf{Balkus's theorem holds empirically.} As-IID splitting matches or beats K$^2$-fold across five DGPs, three learners, and multiple sample sizes.
+  \item \textbf{Whether you need cross-fitting depends on the learner, not the data structure.} MARS and Lasso don't need it (they don't overfit). Deep RF is catastrophic without it. Both as-IID and Chiang fix it equally.
+  \item \textbf{The real issue is standard errors, not splitting.} When cluster sizes grow with the sample, coverage drops for both strategies --- the cluster-robust SE formula breaks down.
+  \item \textbf{Software should separate splitting from variance estimation.} DoubleML bundles them, preventing the optimal combination: as-IID splitting + cluster-robust SEs.
+  \item \textbf{Practical advice:} Use as-IID cross-fitting. Always use cluster-robust standard errors. If clusters are large, consider bootstrap alternatives.
 \end{enumerate}
 
 

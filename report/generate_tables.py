@@ -213,6 +213,94 @@ def generate_doubleml_table() -> None:
     print(f"  Wrote: {out}")
 
 
+def generate_decoupling_table() -> None:
+    """Table: Coverage under each (strategy × SE type) combination.
+
+    Direct evidence that as-IID + CR SE is the optimal combination.
+    """
+    csv_path = BALKUS_RESULTS / "balkus_results.csv"
+    if not csv_path.exists():
+        print(f"  SKIP: {csv_path} not found")
+        return
+
+    df = pd.read_csv(csv_path)
+    df = df[df["dgp"] != "balkus_hard"].copy()
+
+    has_cr = df["se_cr"].notna() & df["covers_cr"].notna()
+    sub = df[has_cr].copy()
+    if sub.empty:
+        print("  SKIP: no cluster-robust SE data")
+        return
+
+    if "n" not in sub.columns:
+        sub["n"] = sub["N"] * sub["M"]
+
+    group_cols = ["dgp", "learner", "strategy", "n"]
+    summary_iid = compute_summary(sub, group_cols=group_cols,
+                                  se_col="se_iid", covers_col="covers_iid")
+    summary_cr = compute_summary(sub, group_cols=group_cols,
+                                 se_col="se_cr", covers_col="covers_cr")
+
+    merged = summary_iid[group_cols + ["coverage", "rel_se"]].rename(
+        columns={"coverage": "cov_iid", "rel_se": "relse_iid"}
+    ).merge(
+        summary_cr[group_cols + ["coverage", "rel_se"]].rename(
+            columns={"coverage": "cov_cr", "rel_se": "relse_cr"}
+        ),
+        on=group_cols,
+    )
+
+    # Aggregate by learner × strategy
+    agg = merged.groupby(["learner", "strategy"]).agg(
+        cov_iid=("cov_iid", "mean"),
+        cov_cr=("cov_cr", "mean"),
+        relse_iid=("relse_iid", "mean"),
+        relse_cr=("relse_cr", "mean"),
+    ).reset_index()
+
+    lines = [
+        r"\begin{tabular}{llrrrr}",
+        r"\toprule",
+        (r"\textbf{Learner} & \textbf{Strategy} & "
+         r"\textbf{Cov.\ (IID SE)} & \textbf{Cov.\ (CR SE)} & "
+         r"\textbf{RelSE (IID)} & \textbf{RelSE (CR)} \\"),
+        r"\midrule",
+    ]
+
+    for i, learner in enumerate(["earth_exact", "deep_rf", "lasso"]):
+        if i > 0:
+            lines.append(r"\midrule")
+        label = LEARNER_LABELS[learner]
+        rows = agg[agg["learner"] == learner].set_index("strategy")
+
+        for j, strat in enumerate(STRAT_ORDER):
+            if strat not in rows.index:
+                continue
+            row = rows.loc[strat]
+            learner_col = (r"\multirow{3}{*}{" + label + "}") if j == 0 else ""
+
+            # Bold the best coverage per learner (closest to 95%)
+            cov_iid_str = f"{row['cov_iid']:.1%}"
+            cov_cr_str = f"{row['cov_cr']:.1%}"
+            if abs(row["cov_cr"] - 0.95) < abs(row["cov_iid"] - 0.95):
+                cov_cr_str = r"\textbf{" + cov_cr_str + "}"
+            else:
+                cov_iid_str = r"\textbf{" + cov_iid_str + "}"
+
+            lines.append(
+                f"  {learner_col} & {STRAT_LABELS[strat]} & "
+                f"{cov_iid_str} & {cov_cr_str} & "
+                f"{row['relse_iid']:.2f} & {row['relse_cr']:.2f} \\\\"
+            )
+
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+
+    out = TABLES_DIR / "decoupling_proof.tex"
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  Wrote: {out}")
+
+
 def main() -> None:
     """Generate all LaTeX table snippets."""
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
@@ -221,6 +309,7 @@ def main() -> None:
     generate_relse_table()
     generate_chiang_table()
     generate_doubleml_table()
+    generate_decoupling_table()
 
     print(f"\nAll tables written to {TABLES_DIR}/")
     print("Include in .tex with: \\input{report/tables/relse_balkus}")
