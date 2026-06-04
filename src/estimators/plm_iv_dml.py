@@ -245,19 +245,28 @@ def dml2_plm_iv(
         J_hat = -denominator / n_obs
         influence = -psi / J_hat
 
-        if variance_type == "twoway_cr":
-            var_theta = _variance_twoway_cr(influence, row_ids, col_ids, N, M)
-        else:
-            var_theta = _variance_iid(influence, n_obs)
+        # Always compute both SE types for decoupling analysis
+        var_iid = _variance_iid(influence, n_obs)
+        var_cr = _variance_twoway_cr(influence, row_ids, col_ids, N, M)
 
-        se = np.sqrt(var_theta)
+        se_iid = np.sqrt(var_iid)
+        se_cr = np.sqrt(var_cr)
+
+        # Primary SE uses the requested variance type
+        se = se_cr if variance_type == "twoway_cr" else se_iid
 
         bias = theta_hat - tau_true
         covers = int(abs(bias) <= 1.96 * se)
+        covers_iid = int(abs(bias) <= 1.96 * se_iid)
+        covers_cr = int(abs(bias) <= 1.96 * se_cr)
 
     return {
         "tau_hat": theta_hat,
         "se": se,
+        "se_iid": se_iid if 'se_iid' in dir() else np.nan,
+        "se_cr": se_cr if 'se_cr' in dir() else np.nan,
         "covers": covers,
+        "covers_iid": covers_iid if 'covers_iid' in dir() else 0,
+        "covers_cr": covers_cr if 'covers_cr' in dir() else 0,
         "bias": theta_hat - tau_true,
     }

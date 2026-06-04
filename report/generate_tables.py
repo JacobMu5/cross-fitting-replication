@@ -306,6 +306,99 @@ def generate_decoupling_table() -> None:
     print(f"  Wrote: {out}")
 
 
+def generate_chiang_decoupling_table() -> None:
+    """Table: Chiang PLIV coverage under IID vs CR SEs (decoupling proof)."""
+    csv_path = CHIANG_RESULTS / "chiang_replication.csv"
+    if not csv_path.exists():
+        print(f"  SKIP: {csv_path} not found")
+        return
+
+    df = pd.read_csv(csv_path)
+    if "se_iid" not in df.columns or "covers_iid" not in df.columns:
+        print("  SKIP: chiang_replication.csv missing dual-SE columns (rerun simulation)")
+        return
+
+    group_cols = ["scenario", "strategy"]
+    summary_iid = compute_summary(df, group_cols=group_cols,
+                                  se_col="se_iid", covers_col="covers_iid")
+    summary_cr = compute_summary(df, group_cols=group_cols,
+                                 se_col="se_cr", covers_col="covers_cr")
+
+    merged = summary_iid[group_cols + ["coverage", "rel_se"]].rename(
+        columns={"coverage": "cov_iid", "rel_se": "relse_iid"}
+    ).merge(
+        summary_cr[group_cols + ["coverage", "rel_se"]].rename(
+            columns={"coverage": "cov_cr", "rel_se": "relse_cr"}
+        ),
+        on=group_cols,
+    )
+
+    # Select key scenarios for a compact table
+    key_scenarios = [
+        "(25,25), dim=100, K^2=4, Lasso",
+        "(25,25), dim=200, K^2=4, Lasso",
+        "(50,50), dim=100, K^2=4, Lasso",
+    ]
+    merged = merged[merged["scenario"].isin(key_scenarios)]
+
+    scenario_labels = {
+        "(25,25), dim=100, K^2=4, Lasso": "$(25,25)$, $p=100$",
+        "(25,25), dim=200, K^2=4, Lasso": "$(25,25)$, $p=200$",
+        "(50,50), dim=100, K^2=4, Lasso": "$(50,50)$, $p=100$",
+    }
+
+    strat_labels = {
+        "no_cf": r"no\_cf",
+        "as_iid": r"as\_iid",
+        "chiang_k2": r"chiang\_k2",
+    }
+    strat_order = ["no_cf", "as_iid", "chiang_k2"]
+
+    lines = [
+        r"\begin{tabular}{llrrrr}",
+        r"\toprule",
+        (r"\textbf{Scenario} & \textbf{Strategy} & "
+         r"\textbf{Cov.\ (IID SE)} & \textbf{Cov.\ (CR SE)} & "
+         r"\textbf{RelSE (IID)} & \textbf{RelSE (CR)} \\"),
+        r"\midrule",
+    ]
+
+    for i, scen in enumerate(key_scenarios):
+        if i > 0:
+            lines.append(r"\midrule")
+        sub = merged[merged["scenario"] == scen].set_index("strategy")
+        label = scenario_labels[scen]
+
+        for j, strat in enumerate(strat_order):
+            if strat not in sub.index:
+                continue
+            row = sub.loc[strat]
+
+            cov_iid_str = _pct(row["cov_iid"])
+            cov_cr_str = _pct(row["cov_cr"])
+            if abs(row["cov_cr"] - 0.95) < abs(row["cov_iid"] - 0.95):
+                cov_cr_str = r"\textbf{" + cov_cr_str + "}"
+            else:
+                cov_iid_str = r"\textbf{" + cov_iid_str + "}"
+
+            scen_col = label if j == 0 else ""
+            relse_iid = f"{row['relse_iid']:.2f}" if not np.isnan(row['relse_iid']) else "---"
+            relse_cr = f"{row['relse_cr']:.2f}" if not np.isnan(row['relse_cr']) else "---"
+
+            lines.append(
+                f"  {scen_col} & {strat_labels[strat]} & "
+                f"{cov_iid_str} & {cov_cr_str} & "
+                f"{relse_iid} & {relse_cr} \\\\"
+            )
+
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+
+    out = TABLES_DIR / "chiang_decoupling.tex"
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  Wrote: {out}")
+
+
 def main() -> None:
     """Generate all LaTeX table snippets."""
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
@@ -315,6 +408,7 @@ def main() -> None:
     generate_chiang_table()
     generate_doubleml_table()
     generate_decoupling_table()
+    generate_chiang_decoupling_table()
 
     print(f"\nAll tables written to {TABLES_DIR}/")
     print("Include in .tex with: \\input{report/tables/relse_balkus}")

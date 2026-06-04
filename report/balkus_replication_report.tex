@@ -202,6 +202,26 @@ This creates an important nuance. Lasso, like MARS, is approximately Donsker ---
 \end{itemize}
 
 
+\subsection{Decoupling Proof on Chiang's DGP}
+
+We applied the same decoupling analysis to Chiang's PLIV: for each scenario and strategy, we computed coverage using both IID and cluster-robust (CR) standard errors.
+
+% Auto-generated from CSV: python -m report.generate_tables
+\begin{table}[H]
+\centering\small
+\caption{Chiang PLIV: coverage by SE type. Bold = closer to 95\%. The as-IID + CR SE combination achieves the best coverage in every scenario.}
+\label{tab:chiang-decoupling}
+\input{tables/chiang_decoupling}
+\end{table}
+
+\paragraph{What this table shows:}
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{CR SEs consistently improve coverage over IID SEs}, across all strategies and scenarios. The improvement is largest for as-IID, where the point estimates are good but IID SEs underestimate uncertainty.
+  \item \textbf{As-IID + CR SE is the winning combination}: it achieves the highest or near-highest coverage in every scenario, with the lowest RMSE (from Table~\ref{tab:chiang}).
+  \item \textbf{Even K$^2$-fold benefits from CR SEs}, but it starts from a worse position due to data starvation.
+\end{itemize}
+
+
 \subsection{The DoubleML Experiment: Why Software Design Matters}
 
 To rule out any bugs in our code, we repeated the comparison using the \textbf{official DoubleML library} (v0.11.1) with its built-in DGP function. Parameters: $N\!=\!M\!=\!25$, $p\!=\!100$, $K\!=\!3$, LassoCV, 100 replications.

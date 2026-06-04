@@ -342,6 +342,16 @@ def main() -> None:
         summary_chiang = compute_summary(df_chiang, group_cols=["scenario", "strategy"])
         summary_chiang.to_csv(results_dir / "chiang_summary_metrics.csv", index=False)
         print(f"  Saved summary: {results_dir / 'chiang_summary_metrics.csv'}")
+
+        # Dual-SE summary for decoupling analysis (if available)
+        if "se_iid" in df_chiang.columns and "covers_iid" in df_chiang.columns:
+            summary_iid = compute_summary(df_chiang, group_cols=["scenario", "strategy"],
+                                          se_col="se_iid", covers_col="covers_iid")
+            summary_cr = compute_summary(df_chiang, group_cols=["scenario", "strategy"],
+                                         se_col="se_cr", covers_col="covers_cr")
+            summary_iid.to_csv(results_dir / "chiang_summary_iid.csv", index=False)
+            summary_cr.to_csv(results_dir / "chiang_summary_cr.csv", index=False)
+            print(f"  Saved dual-SE summaries")
     else:
         print(f"WARNING: Chiang results not found at {chiang_path}")
         
