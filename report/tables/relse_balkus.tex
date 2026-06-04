@@ -1,0 +1,17 @@
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Learner} & \textbf{Strategy} & \textbf{RelSE (IID)} & \textbf{RelSE (CR)} & \textbf{$\Delta$} & \textbf{Cov.\ CR} \\
+\midrule
+  \multirow{3}{*}{MARS} & no\_cf & 0.83 & \textbf{0.87} & $+$0.05 & 89.0% \\
+   & as\_iid & 0.90 & \textbf{0.90} & $+$0.00 & 95.4% \\
+   & chiang & 0.75 & \textbf{0.84} & $+$0.08 & 94.6% \\
+\midrule
+  \multirow{3}{*}{Deep RF} & no\_cf & 0.39 & \textbf{0.58} & $+$0.19 & 28.6% \\
+   & as\_iid & \textbf{0.99} & 0.98 & $-$0.01 & 86.2% \\
+   & chiang & 0.97 & \textbf{0.97} & $+$0.00 & 82.9% \\
+\midrule
+  \multirow{3}{*}{LASSO} & no\_cf & 0.90 & \textbf{0.93} & $+$0.03 & 90.1% \\
+   & as\_iid & \textbf{1.00} & 0.99 & $-$0.01 & 92.7% \\
+   & chiang & 0.95 & \textbf{0.97} & $+$0.01 & 93.5% \\
+\bottomrule
+\end{tabular}
