@@ -38,6 +38,11 @@ def _sign(val: float, fmt: str = ".3f") -> str:
     return f"${'+' if val >= 0 else '-'}${abs(val):{fmt}}"
 
 
+def _pct(val: float, decimals: int = 1) -> str:
+    """Format a fraction as a LaTeX percentage (escapes %)."""
+    return f"{val * 100:.{decimals}f}\\%"
+
+
 def generate_relse_table() -> None:
     """Table: Mean RelSE by learner × strategy (Balkus DGPs)."""
     csv_path = BALKUS_RESULTS / "balkus_results.csv"
@@ -115,7 +120,7 @@ def generate_relse_table() -> None:
                 f"  {learner_col} & {STRAT_LABELS[strat]} & "
                 f"{iid_str} & {cr_str} & "
                 f"${'+' if delta >= 0 else '-'}${abs(delta):.2f} & "
-                f"{row['cov_cr']:.1%} \\\\"
+                f"{_pct(row['cov_cr'])} \\\\"
             )
 
     lines.append(r"\bottomrule")
@@ -164,7 +169,7 @@ def generate_chiang_table() -> None:
                 f"{_sign(row['bias'])} & "
                 f"{row['emp_se']:.3f} & "
                 f"{row['rmse']:.3f} & "
-                f"{row['coverage']:.1%} \\\\"
+                f"{_pct(row['coverage'])} \\\\"
             )
 
     lines.append(r"\bottomrule")
@@ -202,7 +207,7 @@ def generate_doubleml_table() -> None:
             f"{row['mod_se']:.3f} & "
             f"{row['rel_se']:.2f} & "
             f"{row['rmse']:.3f} & "
-            f"{row['coverage']:.1%} \\\\"
+            f"{_pct(row['coverage'])} \\\\"
         )
 
     lines.append(r"\bottomrule")
@@ -280,8 +285,8 @@ def generate_decoupling_table() -> None:
             learner_col = (r"\multirow{3}{*}{" + label + "}") if j == 0 else ""
 
             # Bold the best coverage per learner (closest to 95%)
-            cov_iid_str = f"{row['cov_iid']:.1%}"
-            cov_cr_str = f"{row['cov_cr']:.1%}"
+            cov_iid_str = _pct(row['cov_iid'])
+            cov_cr_str = _pct(row['cov_cr'])
             if abs(row["cov_cr"] - 0.95) < abs(row["cov_iid"] - 0.95):
                 cov_cr_str = r"\textbf{" + cov_cr_str + "}"
             else:
