@@ -47,13 +47,13 @@
   \item \textbf{Lasso} --- L1 regularization keeps EP bias small (behaves Donsker)
 \end{itemize}
 
-\textbf{Metrics} \citep{morris2019}. Since we know the true $\theta_0$, we can check every aspect of estimation quality:
+\textbf{Metrics} \citep{morris2019}. We run 200 replications. Each produces a point estimate $\hat\theta$ and a formula-based standard error $\widehat{SE}$. Since we know $\theta_0$, we can compare what the formula \emph{claims} vs.\ what \emph{actually happens}:
 \begin{itemize}[leftmargin=1.5em, nosep]
   \item \textbf{Bias} $= \bar{\hat\theta} - \theta_0$ --- are estimates centered on the truth?
-  \item \textbf{EmpSE} $= \text{SD}(\hat\theta)$ --- how much do estimates scatter across replications? (true uncertainty)
-  \item \textbf{ModSE} $= \sqrt{\text{mean}(\widehat{SE}^2)}$ --- what the SE formula \emph{thinks} the uncertainty is
-  \item \textbf{RelSE} $=$ ModSE/EmpSE --- do the reported SEs match reality? ($1.0$ = perfect, $<1$ = SEs too small)
-  \item \textbf{Coverage} --- how often does the 95\% CI actually contain $\theta_0$?
+  \item \textbf{EmpSE} $= \text{SD}(\hat\theta)$ --- how much do the 200 estimates actually scatter? (the \emph{true} uncertainty)
+  \item \textbf{ModSE} $= \sqrt{\text{mean}(\widehat{SE}^2)}$ --- what the SE formula \emph{claims} the uncertainty is, averaged over 200 runs
+  \item \textbf{RelSE} $=$ ModSE/EmpSE --- does the formula match reality? ($1.0$ = perfect; $0.5$ = formula reports half the true uncertainty $\to$ CIs too narrow)
+  \item \textbf{Coverage} --- fraction of 95\% CIs that actually contain $\theta_0$
 \end{itemize}
 
 
