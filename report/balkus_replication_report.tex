@@ -19,7 +19,6 @@
 
 \title{\textbf{Cross-Fitting Under Dependent Data:}\\[4pt]
 \large Replication \& Extension of Balkus, Laith \& Hejazi (2026)}
-\author{[Author Name]\\Master Thesis --- [University]}
 \date{June 2026}
 
 \begin{document}
@@ -177,6 +176,8 @@ As-IID & CR & $+$0.002 & 0.053 & \textbf{0.94} & \textbf{92.7\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\emph{Note:} The K$^2$-fold RelSE differs (1.23 vs 0.80) because DoubleML doesn't use plain CGM --- it uses Chiang's own fold-aware variance formula. The point estimates match, so the estimation itself is fine. The SE formula difference needs further investigation.
 
 The \texttt{cluster\_cols} toggle in DoubleML bundles two independent choices:
 \begin{center}\small
