@@ -42,9 +42,9 @@
 
 \textbf{Three learners:}
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{MARS} --- built-in GCV pruning, approximately Donsker (doesn't overfit)
-  \item \textbf{Deep RF} --- fully grown trees, memorizes training data (not Donsker)
-  \item \textbf{Lasso} --- L1 regularization keeps EP bias small (behaves Donsker)
+  \item \textbf{MARS} --- ?
+  \item \textbf{Deep RF} --- trees, memorizes training data (not Donsker)
+  \item \textbf{Lasso} --- L1 regularization keeps EP bias small (behaves Donsker?)
 \end{itemize}
 
 \textbf{Metrics} \citep{morris2019}. We run 200 replications. Each produces a point estimate $\hat\theta$ and a formula-based standard error $\widehat{SE}$. Since we know $\theta_0$, we can compare what the formula \emph{claims} vs.\ what \emph{actually happens}:
@@ -178,25 +178,25 @@ As-IID & CR & $+$0.002 & 0.053 & \textbf{0.94} & \textbf{92.7\%} \\
 \end{tabular}
 \end{table}
 
-The \texttt{cluster\_cols} toggle in DoubleML bundles two independent choices:
-\begin{center}\small
-\begin{tabular}{lcc}
-\toprule
-\texttt{cluster\_cols} & \textbf{Splitting} & \textbf{SEs} \\
-\midrule
-Set     & K$^2$-fold & Cluster-robust \\
-Not set & As-IID     & IID \\
-\textbf{N/A} & \textbf{As-IID} & \textbf{Cluster-robust} \\
-\bottomrule
-\end{tabular}
-\end{center}
+% The \texttt{cluster\_cols} toggle in DoubleML bundles two independent choices:
+% \begin{center}\small
+% \begin{tabular}{lcc}
+% \toprule
+% \texttt{cluster\_cols} & \textbf{Splitting} & \textbf{SEs} \\
+% \midrule
+% Set     & K$^2$-fold & Cluster-robust \\
+% Not set & As-IID     & IID \\
+% \textbf{N/A} & \textbf{As-IID} & \textbf{Cluster-robust} \\
+% \bottomrule
+% \end{tabular}
+% \end{center}
 
 
 %======================================================================
 \section{Boundary: When Theory Breaks}
 %======================================================================
 
-Balkus requires bounded cluster sizes. On a full $N \times M$ grid ($C = M \to \infty$), coverage drops 85\% $\to$ 71\% as the grid grows --- for \emph{both} strategies equally. The CR SE formula itself breaks, not the splitting. On bounded-cluster DGPs ($d=20$), both strategies hit 97\%.
+Balkus requires bounded cluster sizes. This I still need to stress test.
 
 
 %======================================================================
