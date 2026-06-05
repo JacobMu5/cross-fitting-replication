@@ -221,10 +221,7 @@ def generate_doubleml_table() -> None:
 
 
 def generate_decoupling_table() -> None:
-    """Table: Coverage under each (strategy × SE type) combination.
-
-    Direct evidence that as-IID + CR SE is the optimal combination.
-    """
+    """Table: Coverage under each (strategy × SE type) combination."""
     csv_path = BALKUS_RESULTS / "balkus_results.csv"
     if not csv_path.exists():
         print(f"  SKIP: {csv_path} not found")
@@ -257,7 +254,6 @@ def generate_decoupling_table() -> None:
         on=group_cols,
     )
 
-    # Aggregate by learner × strategy
     agg = merged.groupby(["learner", "strategy"]).agg(
         cov_iid=("cov_iid", "mean"),
         cov_cr=("cov_cr", "mean"),
@@ -286,7 +282,6 @@ def generate_decoupling_table() -> None:
             row = rows.loc[strat]
             learner_col = (r"\multirow{3}{*}{" + label + "}") if j == 0 else ""
 
-            # Bold the best coverage per learner (closest to 95%)
             cov_iid_str = _pct(row['cov_iid'])
             cov_cr_str = _pct(row['cov_cr'])
             if abs(row["cov_cr"] - 0.95) < abs(row["cov_iid"] - 0.95):
