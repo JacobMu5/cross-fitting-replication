@@ -101,11 +101,11 @@ All results in this section use Balkus's original DGP (a direct replication of t
 \label{fig:mars-vs-rf}
 \end{figure}
 
-MARS achieves 87--90\% coverage \emph{without any cross-fitting}. Its built-in GCV pruning prevents the overfitting that creates EP bias. As \citet[p.~C16]{chernozhukov2018} note: if the learner belongs to a ``Donsker class'' (roughly: it doesn't overfit enough to create EP bias), cross-fitting is unnecessary. MARS is approximately Donsker; Lasso is not technically Donsker, but L1 regularization keeps its EP bias small enough that it behaves similarly.
+MARS achieves 89--92\% coverage \emph{without any cross-fitting}. Its built-in GCV pruning prevents the overfitting that creates EP bias. As \citet[p.~C16]{chernozhukov2018} note: if the learner belongs to a ``Donsker class'' (roughly: it doesn't overfit enough to create EP bias), cross-fitting is unnecessary. MARS is approximately Donsker; Lasso is not technically Donsker, but L1 regularization keeps its EP bias small enough that it behaves similarly.
 
 This creates a problem: \textbf{MARS is the wrong learner to test Balkus's theorem.} If cross-fitting doesn't matter regardless, we can't tell whether as-IID splitting ``works'' or whether splitting is just irrelevant. That's why we introduced Deep RF --- a learner where cross-fitting genuinely matters.
 
-\paragraph{Deep RF confirms Balkus.} Without cross-fitting, Deep RF creates massive EP bias: coverage drops to 40--52\%. With as-IID splitting, the EP bias vanishes and coverage recovers to 85--91\%. K$^2$-fold also helps (75--84\%) but with lower coverage due to data starvation.
+\paragraph{Deep RF confirms Balkus.} Without cross-fitting, Deep RF creates massive EP bias: coverage drops to 45\%. With as-IID splitting, the EP bias vanishes and coverage recovers to 88\%. K$^2$-fold also helps (78\%) but with lower coverage due to data starvation.
 
 
 \subsection{The SE Calibration Story}
@@ -152,9 +152,9 @@ We claimed that the optimal combination is as-IID splitting with cluster-robust 
 
 \paragraph{Reading the table:}
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{MARS as-IID + CR SE: 93.5\% coverage} --- close to nominal. IID SEs give 94.5\%, so the CR difference is small (MARS's influence function has mild cluster correlation).
+  \item \textbf{MARS as-IID + IID SE: 94.5\% coverage} --- closest to nominal. CR SEs give 93.5\%, slightly worse because MARS's influence function has only mild cluster correlation.
   \item \textbf{Deep RF as-IID: 87.7\% (IID) vs 85.5\% (CR)} --- cross-fitting already cleaned up the influence function. Without CF, coverage jumps from 45.2\% (IID) to 63.7\% (CR), showing CR SEs help but can't fix EP bias alone.
-  \item \textbf{Lasso as-IID + CR SE: 92.3\%} --- again among the best for Lasso. Lasso no-CF + CR SE also achieves 92.0\%, confirming Lasso barely needs cross-fitting.
+  \item \textbf{Lasso as-IID + CR SE: RelSE $= 0.98$} --- nearly perfect SE calibration. Lasso no-CF + CR SE also achieves 92.0\% coverage, confirming Lasso barely needs cross-fitting.
   \item \textbf{No combination of no\_cf achieves $>$65\% for Deep RF.} This confirms: without cross-fitting, even cluster-robust SEs cannot save a reckless learner.
 \end{itemize}
 
@@ -256,7 +256,7 @@ Balkus's Corollary~2 requires that cluster sizes are \emph{bounded} --- each row
 %======================================================================
 
 \begin{enumerate}[leftmargin=1.5em, nosep]
-  \item \textbf{Balkus's theorem holds empirically.} As-IID splitting matches or beats K$^2$-fold across five DGPs, three learners, and multiple sample sizes.
+  \item \textbf{Balkus's theorem holds empirically.} As-IID splitting matches or beats K$^2$-fold across two DGPs, three learners, and multiple sample sizes.
   \item \textbf{Whether you need cross-fitting depends on the learner, not the data structure.} MARS and Lasso don't need it (they don't overfit). Deep RF is catastrophic without it. Both as-IID and Chiang fix it equally.
   \item \textbf{The real issue is standard errors, not splitting.} When cluster sizes grow with the sample, coverage drops for both strategies --- the cluster-robust SE formula breaks down.
   \item \textbf{Software should separate splitting from variance estimation.} DoubleML bundles them, preventing the optimal combination: as-IID splitting + cluster-robust SEs.
