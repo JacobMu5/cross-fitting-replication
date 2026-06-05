@@ -221,28 +221,18 @@ def generate_doubleml_table() -> None:
 
 
 def generate_decoupling_table() -> None:
-    """Table: Coverage under each (strategy × SE type) combination."""
-    csv_path = BALKUS_RESULTS / "balkus_results.csv"
+    """Table: Coverage under each (strategy × SE type), Balkus Original DGP."""
+    csv_path = BALKUS_RESULTS / "balkus_original_cr.csv"
     if not csv_path.exists():
         print(f"  SKIP: {csv_path} not found")
         return
 
     df = pd.read_csv(csv_path)
-    df = df[df["dgp"] != "balkus_hard"].copy()
 
-    has_cr = df["se_cr"].notna() & df["covers_cr"].notna()
-    sub = df[has_cr].copy()
-    if sub.empty:
-        print("  SKIP: no cluster-robust SE data")
-        return
-
-    if "n" not in sub.columns:
-        sub["n"] = sub["N"] * sub["M"]
-
-    group_cols = ["dgp", "learner", "strategy", "n"]
-    summary_iid = compute_summary(sub, group_cols=group_cols,
+    group_cols = ["learner", "strategy", "n"]
+    summary_iid = compute_summary(df, group_cols=group_cols,
                                   se_col="se_iid", covers_col="covers_iid")
-    summary_cr = compute_summary(sub, group_cols=group_cols,
+    summary_cr = compute_summary(df, group_cols=group_cols,
                                  se_col="se_cr", covers_col="covers_cr")
 
     merged = summary_iid[group_cols + ["coverage", "rel_se"]].rename(
@@ -254,6 +244,7 @@ def generate_decoupling_table() -> None:
         on=group_cols,
     )
 
+    # Average across sample sizes
     agg = merged.groupby(["learner", "strategy"]).agg(
         cov_iid=("cov_iid", "mean"),
         cov_cr=("cov_cr", "mean"),
