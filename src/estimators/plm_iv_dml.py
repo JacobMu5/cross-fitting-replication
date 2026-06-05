@@ -30,7 +30,7 @@ def _make_elasticnet(seed: int, dim_x: int) -> ElasticNet:
 def _make_rf(seed: int, dim_x: int) -> RandomForestRegressor:
     """Deep Random Forest — genuinely non-Donsker."""
     return RandomForestRegressor(
-        n_estimators=500, max_depth=None, min_samples_leaf=1,
+        n_estimators=200, max_depth=None, min_samples_leaf=1,
         random_state=seed, n_jobs=1
     )
 

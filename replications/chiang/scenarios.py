@@ -32,6 +32,7 @@ def _chiang_estimator_adapter(
 # Chiang (2021) scenario definitions
 
 CHIANG_SCENARIO_DEFS = [
+    # Lasso (Chiang's original learner — Donsker-class)
     {"N": 25, "M": 25, "dim_x": 100, "K": 2, "ml": "lasso", "s_eu": 0.25,
      "label": "(25,25), dim=100, K^2=4, Lasso"},
     {"N": 25, "M": 25, "dim_x": 200, "K": 2, "ml": "lasso", "s_eu": 0.25,
@@ -44,6 +45,9 @@ CHIANG_SCENARIO_DEFS = [
      "label": "(25,25), dim=100, K^2=9, Lasso"},
     {"N": 25, "M": 25, "dim_x": 200, "K": 3, "ml": "lasso", "s_eu": 0.25,
      "label": "(25,25), dim=200, K^2=9, Lasso"},
+    # Random Forest (non-Donsker — tests whether CF matters on Chiang's DGP)
+    {"N": 25, "M": 25, "dim_x": 100, "K": 2, "ml": "rf", "s_eu": 0.25,
+     "label": "(25,25), dim=100, K^2=4, RF"},
 ]
 
 CHIANG_STRATEGIES = ["no_cf", "as_iid", "chiang_k2"]
