@@ -219,24 +219,24 @@ To rule out bugs in our code, we repeated the comparison using the \textbf{offic
 
 \begin{table}[H]
 \centering\small
-\caption{DoubleML comparison. Both strategies fail --- but in \emph{opposite} directions.}
+\caption{The $2 \times 2$ design matrix. Rows 1--2: what DoubleML gives you. Rows 3--4: our custom implementation, which decouples splitting from SE. Bold = best.}
 \label{tab:doubleml}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{llrrrrrr}
 \toprule
-\textbf{Strategy} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
+\textbf{Splitting} & \textbf{SE type} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
 \midrule
-Chiang K$^2$-fold & $+$0.016 & 0.076 & 0.093 & 1.23 & 0.077 & 99.5\% \\
-As-IID            & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 &  82.0\% \\
+\multicolumn{8}{l}{\textit{DoubleML library (bundled)}} \\
+K$^2$-fold & CR (built-in) & $+$0.016 & 0.076 & 0.093 & 1.23 & 0.077 & 99.5\% \\
+As-IID     & IID (forced)  & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 &  82.0\% \\
+\midrule
+\multicolumn{8}{l}{\textit{Our implementation (decoupled)}} \\
+K$^2$-fold & CR0 & $+$0.015 & 0.075 & 0.060 & 0.80 & 0.077 & 87.3\% \\
+As-IID     & CR0 & $+$0.002 & 0.053 & 0.050 & \textbf{0.94} & \textbf{0.053} & \textbf{92.7\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-As-IID has \textbf{25\% lower variance}, but \textbf{neither strategy produces valid confidence intervals}:
-
-\begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{Chiang: 99.5\% coverage, RelSE $= 1.23$.} SEs are 23\% too large --- you cover everything but learn nothing.
-  \item \textbf{As-IID: 82\% coverage, RelSE $= 0.71$.} SEs are 29\% too small. DoubleML uses IID SEs when \texttt{cluster\_cols} is not set.
-\end{itemize}
+\paragraph{Reading the table.} DoubleML's two options (rows 1--2) both fail: Chiang over-covers (SEs 23\% too large), As-IID under-covers (IID SEs ignore clusters). When we decouple splitting from SE (rows 3--4), both improve --- but \textbf{as-IID + CR SE wins} with the best RelSE (0.94) and coverage (92.7\%).
 
 \paragraph{The problem is software design.} DoubleML bundles two independent choices into one toggle:
 
@@ -247,11 +247,13 @@ As-IID has \textbf{25\% lower variance}, but \textbf{neither strategy produces v
 \midrule
 Set     & K$^2$-fold (cluster-aware) & Cluster-robust \\
 Not set & As-IID (random)            & IID \\
+\midrule
+\textbf{Not available} & \textbf{As-IID (random)} & \textbf{Cluster-robust} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Balkus's theorem tells us these are \emph{logically independent} choices. You want as-IID splitting (maximize training data) \emph{with} cluster-robust SEs (account for correlation). DoubleML doesn't allow this. Our implementation does, and it achieves the best coverage (Table~\ref{tab:chiang-decoupling}).
+Balkus's theorem tells us these are \emph{logically independent} choices. The optimal combination --- as-IID splitting with cluster-robust SEs --- is the one row DoubleML doesn't offer.
 
 
 %======================================================================
