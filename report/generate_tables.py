@@ -140,7 +140,9 @@ def generate_chiang_table() -> None:
 
     df = pd.read_csv(csv_path)
 
-    # Parse scenario string to extract (N,M) and dim
+    # Only keep p=100 scenarios (drop pathological dim=200 where p > n per fold)
+    df = df[df["scenario"].str.contains("dim=100")].copy()
+
     lines = [
         r"\begin{tabular}{llrrrr}",
         r"\toprule",
@@ -318,6 +320,9 @@ def generate_chiang_decoupling_table() -> None:
         print("  SKIP: chiang_replication.csv missing dual-SE columns (rerun simulation)")
         return
 
+    # Keep only rows with dual-SE data (drop old runs without se_iid)
+    df = df[df["se_iid"].notna()].copy()
+
     group_cols = ["scenario", "strategy"]
     summary_iid = compute_summary(df, group_cols=group_cols,
                                   se_col="se_iid", covers_col="covers_iid")
@@ -336,14 +341,12 @@ def generate_chiang_decoupling_table() -> None:
     # Select key scenarios for a compact table
     key_scenarios = [
         "(25,25), dim=100, K^2=4, Lasso",
-        "(25,25), dim=200, K^2=4, Lasso",
         "(50,50), dim=100, K^2=4, Lasso",
     ]
     merged = merged[merged["scenario"].isin(key_scenarios)]
 
     scenario_labels = {
         "(25,25), dim=100, K^2=4, Lasso": "$(25,25)$, $p=100$",
-        "(25,25), dim=200, K^2=4, Lasso": "$(25,25)$, $p=200$",
         "(50,50), dim=100, K^2=4, Lasso": "$(50,50)$, $p=100$",
     }
 

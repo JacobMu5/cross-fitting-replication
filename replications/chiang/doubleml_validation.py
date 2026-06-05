@@ -35,10 +35,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 RESULTS_DIR = Path(__file__).parent / "results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-N_SIM = 100
+N_SIM = 200
 FIRST_SEED = 7691
 N, M, DIM_X = 25, 25, 100
-K = 3
+K = 2  # Chiang et al. (2021) use K=2 throughout their simulations
 THETA_TRUE = 1.0
 
 

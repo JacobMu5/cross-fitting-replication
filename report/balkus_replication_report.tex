@@ -179,60 +179,43 @@ We claimed that the optimal combination is as-IID splitting with cluster-robust 
 
 Everything above uses Balkus's AIPW estimator. A natural question: do the results hold on a completely different estimator?
 
-We replicate the partially linear IV (PLIV) model from \citet[Section~4.1]{chiang2021}. This is their own simulation design, so it's the fairest possible test.
-
-\paragraph{Learner choice: Lasso.} Chiang et al.\ use Lasso in their paper, and we follow their design. In the PLIV model, the learner's job is to partial out $p = 100$--$200$ control variables from the outcome, treatment, and instrument. Lasso is the standard choice for this high-dimensional setting.
-
-This creates an important nuance. Lasso, like MARS, is approximately Donsker --- it doesn't create large EP bias. So the no\_cf and as\_iid rows look almost identical in terms of bias. The Chiang replication is therefore \emph{not} a test of whether cross-fitting removes EP bias (we already showed that with Deep RF above). Instead, it tests a different question: \textbf{what happens when K$^2$-fold splitting starves the learner of training data?} With $K=2$ and a $25 \times 25$ grid, each Chiang fold trains on only $\sim$144 observations --- barely more than the $p = 100$ covariates.
-
-% Auto-generated from CSV: python -m report.generate_tables
-\begin{table}[H]
-\centering\small
-\caption{Chiang PLIV DGP, 220 replications, Lasso learner, CGM cluster-robust SEs.}
-\label{tab:chiang}
-\input{tables/chiang_pliv}
-\end{table}
-
-\paragraph{What this table shows:}
-\begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{Chiang K$^2$-fold has 2$\times$ the variance of as-IID} at $(25,25)$, $p=100$: EmpSE $= 0.111$ vs $0.056$. Each Chiang fold trains on only $\sim$144 observations with 100 covariates --- severe data starvation.
-  \item \textbf{At $p=200$, K$^2$-fold collapses}: bias $= +0.50$, coverage $= 0\%$. There are more covariates than training observations per fold. Lasso cannot learn anything useful.
-  \item \textbf{At $(50,50)$, the gap narrows}: more clusters mean more training data per fold. K$^2$-fold starts working, but as-IID is still better.
-  \item \textbf{No-CF and as-IID are nearly identical}: because Lasso doesn't overfit, cross-fitting doesn't change the point estimates. The coverage differences come from the variance estimation.
-\end{itemize}
+We replicate the partially linear IV (PLIV) model from \citet[Section~4.1]{chiang2021}. This is their own simulation design with Lasso as the first-stage learner and $p = 100$ covariates, so it's the fairest possible test. Lasso, like MARS, is approximately Donsker --- it doesn't create large EP bias. The Chiang replication therefore tests \emph{data starvation} and \emph{decoupling} rather than EP bias removal.
 
 
-\subsection{Decoupling Proof on Chiang's DGP}
+\subsection{Main Results}
 
-We applied the same decoupling analysis to Chiang's PLIV: for each scenario and strategy, we computed coverage using both IID and cluster-robust (CR) standard errors.
+Table~\ref{tab:chiang-decoupling} is the key result. For each scenario and strategy, we report coverage under both IID and cluster-robust (CR) standard errors.
 
 % Auto-generated from CSV: python -m report.generate_tables
 \begin{table}[H]
 \centering\small
-\caption{Chiang PLIV: coverage by SE type. Bold = closer to 95\%. The as-IID + CR SE combination achieves the best coverage in every scenario.}
+\caption{Chiang PLIV: coverage by SE type, 220 replications. Bold = closer to 95\%. As-IID + CR SE wins in every scenario.}
 \label{tab:chiang-decoupling}
 \input{tables/chiang_decoupling}
 \end{table}
 
-\paragraph{What this table shows:}
+\paragraph{Key findings:}
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{CR SEs consistently improve coverage over IID SEs}, across all strategies and scenarios. The improvement is largest for as-IID, where the point estimates are good but IID SEs underestimate uncertainty.
-  \item \textbf{As-IID + CR SE is the winning combination}: it achieves the highest or near-highest coverage in every scenario, with the lowest RMSE (from Table~\ref{tab:chiang}).
-  \item \textbf{Even K$^2$-fold benefits from CR SEs}, but it starts from a worse position due to data starvation.
+  \item \textbf{CR SEs improve coverage by 7--20 percentage points} over IID SEs. Within-cluster correlation is real and IID SEs ignore it.
+  \item \textbf{As-IID + CR SE wins}: 92.7\% at $(25,25)$, 92.3\% at $(50,50)$.
+  \item \textbf{K$^2$-fold suffers from data starvation}: with $K=2$ on a $25 \times 25$ grid, each fold trains on only $\sim$144 observations for 100 covariates. As-IID uses all 625.
 \end{itemize}
 
-Figure~\ref{fig:chiang-se-dual} makes this visual. Each dot is one replication's model SE; the dashed line is the true EmpSE. Dots should cluster \emph{on} the dashed line for well-calibrated SEs.
+Figure~\ref{fig:chiang-se-dual} makes this visual. Each dot is one replication's model SE; the dashed line is the true EmpSE. Well-calibrated SEs should cluster \emph{on} the dashed line.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{replications/chiang/results/plots/chiang_se_calibration_dual.png}
-\caption{SE calibration on Chiang's DGP ($N$=$M$=25, $p$=100). \textbf{As-IID + CR SE} (rightmost): dots cluster on the dashed line (RelSE $= 0.92$, only 8\% too small). Chiang $K^2$ + IID SE (leftmost): dots sit far below (RelSE $= 0.54$, 46\% too small).}
+\caption{SE calibration on Chiang's DGP ($N$=$M$=25, $p$=100). \textbf{As-IID + CR SE} (rightmost): dots cluster on the dashed line (RelSE $= 0.92$, only 8\% too small). Chiang $K^2$ + IID SE (leftmost): 46\% too small.}
 \label{fig:chiang-se-dual}
 \end{figure}
 
-\subsection{The DoubleML Experiment: Why Software Design Matters}
+\paragraph{The remaining 8\% gap.} Our CR SEs use the classic CGM (2011) formula, which is known to be slightly downward-biased when the number of clusters is moderate ($G = 25$). Newer bias-corrected estimators (CR2, Bell \& McCaffrey, 2002) would likely close this gap. For our argument --- that as-IID + CR SE dominates K$^2$-fold regardless of SE formula --- the conclusion is already clear.
 
-To rule out any bugs in our code, we repeated the comparison using the \textbf{official DoubleML library} (v0.11.1) with its built-in DGP function. Parameters: $N\!=\!M\!=\!25$, $p\!=\!100$, $K\!=\!3$, LassoCV, 100 replications.
+
+\subsection{Robustness Check: The DoubleML Library}
+
+To rule out bugs in our code, we repeated the comparison using the \textbf{official DoubleML library} (v0.11.1) with its built-in DGP. Parameters: $N\!=\!M\!=\!25$, $p\!=\!100$, $K\!=\!2$ (matching Chiang's paper), LassoCV, 200 replications.
 
 \begin{table}[H]
 \centering\small
@@ -242,24 +225,17 @@ To rule out any bugs in our code, we repeated the comparison using the \textbf{o
 \toprule
 \textbf{Strategy} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
 \midrule
-Chiang K$^2$-fold & $+$0.007 & 0.074 & 0.106 & 1.43 & 0.074 & 100\% \\
-As-IID            & $+$0.005 & 0.060 & 0.040 & 0.66 & 0.060 &  78\% \\
+Chiang K$^2$-fold & $+$0.016 & 0.076 & 0.093 & 1.23 & 0.077 & 99.5\% \\
+As-IID            & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 &  82.0\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\textwidth]{replications/chiang/results/doubleml_comparison.png}
-\caption{DoubleML diagnostic. As-IID has tighter estimates (A) but its SEs are too small (B, RelSE $=0.66$). Chiang's SEs are too large (RelSE $=1.43$). Chiang's CIs cover everything (D) but are uninformatively wide.}
-\label{fig:doubleml}
-\end{figure}
-
-The results are striking. As-IID has \textbf{19\% lower variance} (better estimates), but \textbf{neither strategy produces valid confidence intervals}:
+As-IID has \textbf{25\% lower variance}, but \textbf{neither strategy produces valid confidence intervals}:
 
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item \textbf{Chiang: 100\% coverage, RelSE $= 1.43$.} The SEs are 43\% too large. Every confidence interval covers the truth, but they're so wide they're useless. You cover everything but learn nothing.
-  \item \textbf{As-IID: 78\% coverage, RelSE $= 0.66$.} The SEs are 34\% too small. This is because DoubleML uses IID SEs when you don't set \texttt{cluster\_cols} --- it ignores within-cluster correlation entirely.
+  \item \textbf{Chiang: 99.5\% coverage, RelSE $= 1.23$.} SEs are 23\% too large --- you cover everything but learn nothing.
+  \item \textbf{As-IID: 82\% coverage, RelSE $= 0.71$.} SEs are 29\% too small. DoubleML uses IID SEs when \texttt{cluster\_cols} is not set.
 \end{itemize}
 
 \paragraph{The problem is software design.} DoubleML bundles two independent choices into one toggle:
@@ -275,7 +251,7 @@ Not set & As-IID (random)            & IID \\
 \end{tabular}
 \end{center}
 
-But Balkus's theorem tells us these are \emph{logically independent} choices. You want as-IID splitting (to maximize training data) \emph{with} cluster-robust SEs (to account for within-cluster correlation). DoubleML doesn't let you do this. Our custom implementation does, and it achieves the best bias--coverage tradeoff (Table~\ref{tab:chiang}).
+Balkus's theorem tells us these are \emph{logically independent} choices. You want as-IID splitting (maximize training data) \emph{with} cluster-robust SEs (account for correlation). DoubleML doesn't allow this. Our implementation does, and it achieves the best coverage (Table~\ref{tab:chiang-decoupling}).
 
 
 %======================================================================
