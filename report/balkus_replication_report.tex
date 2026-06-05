@@ -47,7 +47,14 @@
   \item \textbf{Lasso} --- L1 regularization keeps EP bias small (behaves Donsker)
 \end{itemize}
 
-\textbf{Metrics} (Morris et al., 2019): Bias $= \bar{\hat\theta} - \theta_0$, EmpSE $= \text{SD}(\hat\theta)$, ModSE $= \sqrt{\text{mean}(\widehat{SE}^2)}$, RelSE $=$ ModSE/EmpSE (1.0 = perfect), Coverage (95\% CI hit rate).
+\textbf{Metrics} \citep{morris2019}. Since we know the true $\theta_0$, we can check every aspect of estimation quality:
+\begin{itemize}[leftmargin=1.5em, nosep]
+  \item \textbf{Bias} $= \bar{\hat\theta} - \theta_0$ --- are estimates centered on the truth?
+  \item \textbf{EmpSE} $= \text{SD}(\hat\theta)$ --- how much do estimates scatter across replications? (true uncertainty)
+  \item \textbf{ModSE} $= \sqrt{\text{mean}(\widehat{SE}^2)}$ --- what the SE formula \emph{thinks} the uncertainty is
+  \item \textbf{RelSE} $=$ ModSE/EmpSE --- do the reported SEs match reality? ($1.0$ = perfect, $<1$ = SEs too small)
+  \item \textbf{Coverage} --- how often does the 95\% CI actually contain $\theta_0$?
+\end{itemize}
 
 
 %======================================================================
@@ -123,7 +130,9 @@ Key takeaways:
 \label{sec:chiang}
 %======================================================================
 
-PLIV model from \citet[Section~4.1]{chiang2021}, Lasso, $p = 100$. Tests data starvation and decoupling (not EP bias --- Lasso is well-behaved).
+To test on a different estimator, we replicate the PLIV model from \citet[Section~4.1]{chiang2021} with Lasso and $p = 100$ covariates. Lasso's EP bias is small, so this tests data starvation and decoupling.
+
+\subsection{Results}
 
 \begin{table}[H]
 \centering\small
@@ -145,32 +154,31 @@ PLIV model from \citet[Section~4.1]{chiang2021}, Lasso, $p = 100$. Tests data st
 \label{fig:chiang-se-dual}
 \end{figure}
 
-
-\subsection{DoubleML Validation}
+\subsection{Validation Against DoubleML}
 \label{sec:doubleml}
 
-Same experiment via DoubleML v0.11.1 ($N$=$M$=25, $p$=100, 200 reps):
+To rule out bugs, we ran the same setup through DoubleML v0.11.1 ($N$=$M$=25, $p$=100, 200 reps). The library only offers two modes --- neither is optimal:
 
 \begin{table}[H]
 \centering\small
-\caption{DoubleML bundles splitting + SE. Our decoupled version finds the optimum.}
+\caption{DoubleML bundles splitting + SE into one toggle. Decoupling reveals the optimal combo.}
 \label{tab:doubleml}
 \begin{tabular}{llrrrrrr}
 \toprule
 \textbf{Split} & \textbf{SE} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
 \midrule
-\multicolumn{8}{l}{\textit{DoubleML (bundled)}} \\
+\multicolumn{8}{l}{\textit{DoubleML library (bundled splitting + SE)}} \\
 K$^2$ & CR  & $+$0.016 & 0.076 & 0.093 & 1.23 & 0.077 & 99.5\% \\
-IID   & IID & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 & 82.0\% \\
+As-IID & IID & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 & 82.0\% \\
 \midrule
-\multicolumn{8}{l}{\textit{Ours (decoupled)}} \\
+\multicolumn{8}{l}{\textit{Decoupled (splitting and SE chosen independently)}} \\
 K$^2$ & CR0 & $+$0.015 & 0.075 & 0.060 & 0.80 & 0.077 & 87.3\% \\
-IID   & CR0 & $+$0.002 & 0.053 & 0.050 & \textbf{0.94} & \textbf{0.053} & \textbf{92.7\%} \\
+As-IID & CR0 & $+$0.002 & 0.053 & 0.050 & \textbf{0.94} & \textbf{0.053} & \textbf{92.7\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-DoubleML can't produce the winning row. The \texttt{cluster\_cols} toggle bundles two independent choices:
+The \texttt{cluster\_cols} toggle in DoubleML bundles two independent choices:
 \begin{center}\small
 \begin{tabular}{lcc}
 \toprule
