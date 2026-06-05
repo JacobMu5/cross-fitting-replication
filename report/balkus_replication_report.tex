@@ -221,6 +221,14 @@ We applied the same decoupling analysis to Chiang's PLIV: for each scenario and 
   \item \textbf{Even K$^2$-fold benefits from CR SEs}, but it starts from a worse position due to data starvation.
 \end{itemize}
 
+Figure~\ref{fig:chiang-se-dual} makes this visual. Each dot is one replication's model SE; the dashed line is the true EmpSE. Dots should cluster \emph{on} the dashed line for well-calibrated SEs.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{replications/chiang/results/plots/chiang_se_calibration_dual.png}
+\caption{SE calibration on Chiang's DGP ($N$=$M$=25, $p$=100). \textbf{As-IID + CR SE} (rightmost): dots cluster on the dashed line (RelSE $= 0.92$, only 8\% too small). Chiang $K^2$ + IID SE (leftmost): dots sit far below (RelSE $= 0.54$, 46\% too small).}
+\label{fig:chiang-se-dual}
+\end{figure}
 
 \subsection{The DoubleML Experiment: Why Software Design Matters}
 
