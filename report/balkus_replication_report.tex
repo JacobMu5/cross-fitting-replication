@@ -68,7 +68,7 @@ Table~\ref{tab:bias-var} shows how well each learner estimates $\theta_0$ on Bal
 
 \begin{table}[H]
 \centering\small
-\caption{Bias and variance by learner and strategy, Balkus Original DGP, $n=2500$.}
+\caption{Bias and variance by learner and strategy, Balkus Original DGP, $n=2500$ (IID SE).}
 \label{tab:bias-var}
 \begin{tabular}{llrrrr}
 \toprule
@@ -142,7 +142,7 @@ To test on a different estimator, we replicate the PLIV model from \citet[Sectio
 \end{table}
 
 \begin{itemize}[leftmargin=1.5em, nosep]
-  \item CR SEs improve coverage by 7--20 pp over IID
+  \item CR SEs improve coverage by 7--31 pp over IID
   \item As-IID + CR SE: 92.7\% at $(25,25)$, 92.3\% at $(50,50)$
   \item K$^2$-fold: data starvation ($\sim$144 obs for 100 covariates at $25 \times 25$)
 \end{itemize}
@@ -163,17 +163,17 @@ To rule out bugs, we ran the same setup through DoubleML v0.11.1 ($N$=$M$=25, $p
 \centering\small
 \caption{DoubleML bundles splitting + SE into one toggle. Decoupling reveals the optimal combo.}
 \label{tab:doubleml}
-\begin{tabular}{llrrrrrr}
+\begin{tabular}{llrrrr}
 \toprule
-\textbf{Split} & \textbf{SE} & \textbf{Bias} & \textbf{EmpSE} & \textbf{ModSE} & \textbf{RelSE} & \textbf{RMSE} & \textbf{Cov.} \\
+\textbf{Split} & \textbf{SE} & \textbf{Bias} & \textbf{EmpSE} & \textbf{RelSE} & \textbf{Cov.} \\
 \midrule
-\multicolumn{8}{l}{\textit{DoubleML library (bundled splitting + SE)}} \\
-K$^2$ & CR  & $+$0.016 & 0.076 & 0.093 & 1.23 & 0.077 & 99.5\% \\
-As-IID & IID & $+$0.003 & 0.057 & 0.040 & 0.71 & 0.057 & 82.0\% \\
+\multicolumn{6}{l}{\textit{DoubleML library (bundled splitting + SE)}} \\
+K$^2$ & CR  & $+$0.016 & 0.076 & 1.23 & 99.5\% \\
+As-IID & IID & $+$0.003 & 0.057 & 0.71 & 82.0\% \\
 \midrule
-\multicolumn{8}{l}{\textit{Decoupled (splitting and SE chosen independently)}} \\
-K$^2$ & CR0 & $+$0.015 & 0.075 & 0.060 & 0.80 & 0.077 & 87.3\% \\
-As-IID & CR0 & $+$0.002 & 0.053 & 0.050 & \textbf{0.94} & \textbf{0.053} & \textbf{92.7\%} \\
+\multicolumn{6}{l}{\textit{Decoupled (splitting and SE chosen independently)}} \\
+K$^2$ & CR & $+$0.015 & 0.075 & 0.80 & 87.3\% \\
+As-IID & CR & $+$0.002 & 0.053 & \textbf{0.94} & \textbf{92.7\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
